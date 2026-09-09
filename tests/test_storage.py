@@ -44,3 +44,32 @@ def test_supabase_mark_replied_carries_username(monkeypatch):
     reply_posts = [c for c in calls if c[0] == "POST" and c[1].endswith("/social_lead_replies")]
     assert reply_posts
     assert reply_posts[0][2]["json"]["username"] == "buyer"
+
+
+def test_supabase_upsert_merges_prefer_header(monkeypatch):
+    from social_lead_hunter.models import QualificationResult, SocialPost
+    from social_lead_hunter.storage.supabase import SupabaseStorage
+
+    calls = []
+
+    class Response:
+        def raise_for_status(self):
+            return None
+        def json(self):
+            return []
+
+    def fake_request(method, url, **kwargs):
+        calls.append((method, url, kwargs))
+        return Response()
+
+    monkeypatch.setattr("requests.request", fake_request)
+    db = SupabaseStorage(url="https://example.invalid", key="secret")
+    now = datetime.now(timezone.utc)
+    db.save_raw_post("threads", "abc", "buyer", "text", "url", now)
+    post = SocialPost("threads", "abc", "buyer", "text", "url", now)
+    result = QualificationResult(90, True, False, ["test"])
+    db.save_candidate(post, result, "draft", "drafted")
+
+    assert calls[0][2]["headers"]["Prefer"] == "resolution=ignore-duplicates"
+    assert calls[1][2]["headers"]["Prefer"] == "resolution=merge-duplicates"
+    assert calls[0][2]["headers"]["Authorization"].startswith("Bearer ")
