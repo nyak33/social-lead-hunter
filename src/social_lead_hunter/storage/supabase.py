@@ -20,7 +20,9 @@ class SupabaseStorage:
         return {"apikey": self.key, "Authorization": f"Bearer {self.key}", "Content-Type": "application/json"}
 
     def _request(self, method: str, table: str, **kwargs):
-        response = requests.request(method, f"{self.url}/rest/v1/{table}", headers=self._headers, timeout=self.timeout, **kwargs)
+        headers = dict(self._headers)
+        headers.update(kwargs.pop("headers", {}) or {})
+        response = requests.request(method, f"{self.url}/rest/v1/{table}", headers=headers, timeout=self.timeout, **kwargs)
         response.raise_for_status()
         return response
 
