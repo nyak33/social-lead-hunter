@@ -33,4 +33,22 @@ create table if not exists public.social_lead_replies (
   replied_at timestamptz not null default now()
 );
 
-create index if not exists social_lead_replies_username_time_idx on public.social_lead_replies(lower(username), replied_at desc);
+create index if not exists social_lead_replies_username_time_idx
+  on public.social_lead_replies(lower(username), replied_at desc);
+
+-- These tables are server-side automation data. Public client roles should not
+-- be able to read or modify them. Supabase's service_role bypasses RLS and is
+-- intended for trusted server-side use only.
+alter table public.social_lead_posts enable row level security;
+alter table public.social_leads enable row level security;
+alter table public.social_lead_replies enable row level security;
+
+revoke all on public.social_lead_posts from anon, authenticated;
+revoke all on public.social_leads from anon, authenticated;
+revoke all on public.social_lead_replies from anon, authenticated;
+
+grant select, insert, update, delete on public.social_lead_posts to service_role;
+grant select, insert, update, delete on public.social_leads to service_role;
+grant select, insert, update, delete on public.social_lead_replies to service_role;
+
+grant usage, select on all sequences in schema public to service_role;
