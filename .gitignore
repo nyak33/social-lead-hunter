@@ -5,28 +5,21 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-.env
-.agent-reach/
+.venv/
+venv/
 *.log
 
-# Claude Code personal permission settings — local only, never commit
-.claude/settings.local.json
-uv.lock
-
-# InsForge & AI agent skills
-.insforge
-.agent
-.agents
-.augment
-.claude
-.cline
-.github/copilot*
-.kilocode
-.qoder
-.qwen
-.roo
-.trae
-.windsurf
-
-# Local environment secrets
-.env*.local
+.env
+.env.*
+!.env.example
+config.yaml
+config.local.yaml
+credentials/
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.sqlite
+*.sqlite3
+*.db

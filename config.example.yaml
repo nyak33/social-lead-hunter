@@ -1,0 +1,27 @@
+business:
+  description: "CHANGE_ME: describe what the business offers"
+  services:
+    - "CHANGE_ME: service or product"
+  reply_style: "helpful, concise, contextual"
+  cta: ""
+
+search:
+  keywords:
+    - "CHANGE_ME: buyer-intent search phrase"
+  negative_keywords: []
+  target_locations: []
+  freshness_hours: 24
+  min_score: 80
+
+runtime:
+  dry_run: true
+  max_replies_per_day: 5
+  min_reply_gap_minutes: 30
+  same_user_cooldown_days: 7
+
+storage:
+  backend: "sqlite"
+  path: "~/.local/share/social-lead-hunter/social_leads.sqlite3"
+
+llm:
+  enabled: false
