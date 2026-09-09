@@ -1,3 +1,4 @@
+import requests
 import pytest
 
 from social_lead_hunter.platforms.base import AuthenticationError, PermissionError, RateLimitError, ProviderError
@@ -22,13 +23,21 @@ class FakeSession:
     def queue(self, status_code=200, payload=None, text=""):
         self.responses.append(FakeResponse(status_code, payload, text))
 
+    def queue_exception(self, exc):
+        self.responses.append(exc)
+
     def request(self, method, url, **kwargs):
         self.requests.append({"method": method, "url": url, **kwargs})
-        return self.responses.pop(0) if self.responses else FakeResponse(200, {})
+        if not self.responses:
+            return FakeResponse(200, {})
+        item = self.responses.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
 
 
-def make_adapter(session):
-    return ThreadsAdapter(access_token="secret-token", user_id="123", session=session)
+def make_adapter(session, **kwargs):
+    return ThreadsAdapter(access_token="secret-token", user_id="123", session=session, retry_backoff_seconds=0, **kwargs)
 
 
 def test_search_uses_recent_keyword_search():
@@ -67,13 +76,43 @@ def test_debug_token_checks_required_scopes():
     assert session.requests[-1]["url"].endswith("/debug_token")
 
 
-@pytest.mark.parametrize("status,error_type", [(401, AuthenticationError), (403, PermissionError), (429, RateLimitError), (500, ProviderError)])
-def test_error_mapping(status, error_type):
+@pytest.mark.parametrize("status,error_type", [(401, AuthenticationError), (403, PermissionError), (429, RateLimitError), (400, ProviderError)])
+def test_non_retryable_error_mapping(status, error_type):
     session = FakeSession()
     session.queue(status_code=status, payload={"error": {"message": "failure"}})
-    adapter = make_adapter(session)
+    adapter = make_adapter(session, max_retries=2)
     with pytest.raises(error_type):
         adapter.search_recent("service")
+    assert len(session.requests) == 1
+
+
+def test_retries_temporary_server_error_then_succeeds():
+    session = FakeSession()
+    session.queue(status_code=500, payload={"error": {"message": "temporary"}})
+    session.queue(payload={"data": []})
+    adapter = make_adapter(session, max_retries=2)
+    assert adapter.search_recent("service") == []
+    assert len(session.requests) == 2
+
+
+def test_retries_connection_error_then_succeeds():
+    session = FakeSession()
+    session.queue_exception(requests.ConnectionError("temporary network failure"))
+    session.queue(payload={"data": []})
+    adapter = make_adapter(session, max_retries=2)
+    assert adapter.search_recent("service") == []
+    assert len(session.requests) == 2
+
+
+def test_temporary_error_stops_after_bounded_retries():
+    session = FakeSession()
+    session.queue(status_code=500)
+    session.queue(status_code=502)
+    session.queue(status_code=503)
+    adapter = make_adapter(session, max_retries=2)
+    with pytest.raises(ProviderError):
+        adapter.search_recent("service")
+    assert len(session.requests) == 3
 
 
 def test_identity_sets_own_username():
