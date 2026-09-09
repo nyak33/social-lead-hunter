@@ -1,0 +1,32 @@
+business:
+  description: "A local service provider helping customers with custom project needs"
+  services:
+    - "custom service"
+    - "project consultation"
+  reply_style: "helpful, concise, contextual"
+  cta: ""
+
+search:
+  keywords:
+    - "looking for service provider"
+    - "need custom service"
+  negative_keywords:
+    - "job vacancy"
+    - "giveaway"
+  target_locations:
+    - "Malaysia"
+  freshness_hours: 24
+  min_score: 80
+
+runtime:
+  dry_run: true
+  max_replies_per_day: 5
+  min_reply_gap_minutes: 30
+  same_user_cooldown_days: 7
+
+storage:
+  backend: "sqlite"
+  path: "social_leads.sqlite3"
+
+llm:
+  enabled: false
