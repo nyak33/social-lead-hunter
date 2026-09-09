@@ -59,7 +59,7 @@ def _as_list(value: Any) -> list[str]:
 
 
 def load_config(path: str) -> AppConfig:
-    raw = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+    raw = yaml.safe_load(Path(path).expanduser().read_text(encoding="utf-8")) or {}
     business_raw = raw.get("business") or {}
     search_raw = raw.get("search") or {}
     runtime_raw = raw.get("runtime") or {}
@@ -108,11 +108,14 @@ def load_config(path: str) -> AppConfig:
         cta=str(business_raw.get("cta") or "").strip(),
     )
 
+    storage_path = str(storage_raw.get("path") or "social_leads.sqlite3").strip()
+    storage_path = str(Path(storage_path).expanduser())
+
     return AppConfig(
         business=business,
         search=search,
         runtime=runtime,
         storage_backend=str(storage_raw.get("backend") or "sqlite").strip().lower(),
-        storage_path=str(storage_raw.get("path") or "social_leads.sqlite3").strip(),
+        storage_path=storage_path,
         llm_enabled=bool(llm_raw.get("enabled", False)),
     )
