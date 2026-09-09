@@ -15,3 +15,10 @@ def test_cli_has_run_command():
 def test_cli_has_show_config_command():
     args = build_parser().parse_args(["show-config", "--config", "config.yaml"])
     assert args.command == "show-config"
+
+
+def test_cli_has_setup_command_with_safe_default_path():
+    args = build_parser().parse_args(["setup"])
+    assert args.command == "setup"
+    assert args.config.endswith(".config/social-lead-hunter/config.yaml")
+    assert args.force is False
