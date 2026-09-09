@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import os
+import time
 from typing import Any
 
 import requests
@@ -22,6 +23,8 @@ class ThreadsAdapter:
         api_version: str | None = None,
         session: Any | None = None,
         timeout: float = 20.0,
+        max_retries: int = 2,
+        retry_backoff_seconds: float = 0.5,
     ):
         self.access_token = access_token or os.getenv("THREADS_ACCESS_TOKEN") or ""
         self.user_id = user_id or os.getenv("THREADS_USER_ID") or ""
@@ -29,9 +32,15 @@ class ThreadsAdapter:
         self.api_version = (api_version or os.getenv("THREADS_API_VERSION") or "").strip().strip("/")
         self.session = session or requests.Session()
         self.timeout = timeout
+        self.max_retries = int(max_retries)
+        self.retry_backoff_seconds = float(retry_backoff_seconds)
         self.own_username: str | None = None
         if not self.access_token:
             raise ValueError("THREADS_ACCESS_TOKEN is required")
+        if self.max_retries < 0:
+            raise ValueError("max_retries cannot be negative")
+        if self.retry_backoff_seconds < 0:
+            raise ValueError("retry_backoff_seconds cannot be negative")
 
     @property
     def api_root(self) -> str:
@@ -41,25 +50,46 @@ class ThreadsAdapter:
     def headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.access_token}"}
 
+    def _wait_before_retry(self, attempt: int) -> None:
+        if self.retry_backoff_seconds <= 0:
+            return
+        time.sleep(self.retry_backoff_seconds * (2 ** attempt))
+
     def _request(self, method: str, path: str, **kwargs):
         headers = dict(self.headers)
         headers.update(kwargs.pop("headers", {}) or {})
-        response = self.session.request(method, f"{self.api_root}{path}", headers=headers, timeout=self.timeout, **kwargs)
-        status = int(getattr(response, "status_code", 0))
-        if status == 401:
-            raise AuthenticationError("Threads authentication failed; token may be invalid or expired")
-        if status == 403:
-            raise PermissionError("Threads permission denied; required scope or app access may be missing")
-        if status == 429:
-            raise RateLimitError("Threads API rate limit reached")
-        if status >= 500:
-            raise ProviderError(f"Threads API provider error ({status})")
-        if status >= 400:
-            raise ProviderError(f"Threads API request failed ({status})")
-        try:
-            return response.json()
-        except Exception as exc:
-            raise ProviderError("Threads API returned invalid JSON") from exc
+        url = f"{self.api_root}{path}"
+
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = self.session.request(method, url, headers=headers, timeout=self.timeout, **kwargs)
+            except requests.RequestException as exc:
+                if attempt >= self.max_retries:
+                    raise ProviderError("Threads network request failed after bounded retries") from exc
+                self._wait_before_retry(attempt)
+                continue
+
+            status = int(getattr(response, "status_code", 0))
+            if status == 401:
+                raise AuthenticationError("Threads authentication failed; token may be invalid or expired")
+            if status == 403:
+                raise PermissionError("Threads permission denied; required scope or app access may be missing")
+            if status == 429:
+                raise RateLimitError("Threads API rate limit reached")
+            if status >= 500:
+                if attempt < self.max_retries:
+                    self._wait_before_retry(attempt)
+                    continue
+                raise ProviderError(f"Threads API provider error ({status}) after bounded retries")
+            if status >= 400:
+                raise ProviderError(f"Threads API request failed ({status})")
+
+            try:
+                return response.json()
+            except Exception as exc:
+                raise ProviderError("Threads API returned invalid JSON") from exc
+
+        raise ProviderError("Threads API request failed")
 
     def _debug_token(self) -> dict[str, Any]:
         payload = self._request("GET", "/debug_token", params={"input_token": self.access_token})
