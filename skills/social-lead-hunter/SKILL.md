@@ -1,7 +1,7 @@
 ---
 name: social-lead-hunter
 description: Find recent public social posts with buying intent, qualify them, draft contextual replies, and optionally publish only after explicit approval and safety checks.
-version: 0.1.0
+version: 0.2.0
 metadata:
   hermes:
     tags: [social, leads, threads, automation, sales]
@@ -16,11 +16,13 @@ metadata:
 
 # Social Lead Hunter
 
-## When to use
+## Goal
 
-Use this skill when the operator wants Hermes to find recent public posts from people who appear to need a product or service, score the opportunity, draft a relevant reply, or run the lead-hunting workflow on a schedule.
+Make setup as automatic as possible while keeping secrets out of GitHub and keeping live replies off until the operator explicitly approves them.
 
-The engine is intentionally generic. Business details, services, keywords, target locations, reply style, CTA, and limits come from the operator's local config file. Credentials come from environment variables or the operator's secret store.
+## Plain-language rule
+
+When you need information from the operator, ask in plain language. Do not ask them to understand Python, YAML, APIs, scopes, or database internals.
 
 ## Safety rule
 
@@ -28,32 +30,85 @@ The engine is intentionally generic. Business details, services, keywords, targe
 
 Dry-run means the engine may search, score, draft, and store leads, but it must not publish a social reply.
 
-Never paste access tokens, app secrets, API keys, database keys, or passwords into this skill, a Git repository, `config.yaml`, chat output, logs, or command history when avoidable.
+Never paste access tokens, app secrets, API keys, database keys, or passwords into this skill, a Git repository, config files committed to Git, chat output, logs, or command history when avoidable.
 
-## Procedure
+## Automatic setup procedure
 
-1. Resolve the configured local config path. Expand `~` before use.
-2. Confirm the `social-lead-hunter` CLI is installed. If it is missing, stop and tell the operator the engine must first be installed from the repository into a local Python environment.
-3. Confirm the local config exists. If not, copy `config.example.yaml` from the engine repository to the configured local path and ask the operator to fill in non-secret business settings.
-4. Confirm `runtime.dry_run` is `true` before the first run.
-5. Run the capability audit:
+1. Determine the local config path. Default to:
+
+   ```text
+   ~/.config/social-lead-hunter/config.yaml
+   ```
+
+2. Check whether the `social-lead-hunter` CLI exists.
+
+3. If the CLI is missing, install the engine safely:
+
+   - If you are already inside the repository root and `pyproject.toml` exists:
+
+     ```bash
+     python3 -m pip install -e .
+     ```
+
+   - Otherwise, if the operator supplied the GitHub repository URL, install directly from that repository URL:
+
+     ```bash
+     python3 -m pip install "git+<repository-url>"
+     ```
+
+   - If you do not know the repository URL, ask only for the **GitHub repository URL**. This is not a secret. Do not ask for any API key at this stage.
+
+4. Run the one-command local setup:
+
+   ```bash
+   social-lead-hunter setup --config "$CONFIG_PATH"
+   ```
+
+   This creates a safe local config when missing, prepares SQLite when used, and leaves dry-run enabled. It does not overwrite an existing config unless `--force` is explicitly used.
+
+5. Read the local config. If it still contains `CHANGE_ME` placeholders, configure it using information the operator already provided in the conversation when possible.
+
+6. Only ask for missing non-secret business settings. Ask in plain language, for example:
+
+   - What product or service should I look for customers asking about?
+   - Which area or country should I focus on?
+   - What words would customers normally use when asking for it?
+   - Should replies be formal, casual, or mixed-language?
+   - Is there an optional contact/CTA to add, or should replies stay contact-free?
+
+   Do not ask all of these if the answers are already known.
+
+7. Keep business configuration in the local config file, outside the repository. Keep credentials in environment variables or the operator's secret store.
+
+8. Check environment readiness. If a secret is missing, report only the variable name, never a secret value. Required for Threads use:
+
+   ```text
+   THREADS_ACCESS_TOKEN
+   ```
+
+   Other variables are optional depending on storage/LLM configuration.
+
+9. Run the capability audit:
 
    ```bash
    social-lead-hunter audit --config "$CONFIG_PATH"
    ```
 
-6. If identity, keyword search, or reply capability is blocked, stop. Report which capability failed and the missing scope/error. Do not try to work around a missing permission by scraping.
-7. Run one dry-run cycle:
+10. If identity, keyword search, or reply capability is blocked, stop. Explain the problem in plain language and identify the missing permission/error. Do not bypass missing permission by scraping.
+
+11. Run one dry-run cycle:
 
    ```bash
    social-lead-hunter run --config "$CONFIG_PATH"
    ```
 
-8. Review the generated leads and drafts. Pay attention to false positives, competitors advertising themselves, irrelevant locations, duplicate users, and generic/spammy drafts.
-9. Tune local keywords, services, locations, exclusions, score threshold, and reply style as needed. Do not edit the engine for normal business configuration.
-10. Only after the operator explicitly says to enable live replies may `runtime.dry_run` be changed to `false`.
-11. Before live scheduling, run `audit` again and confirm the daily reply cap, minimum gap, and same-user cooldown are appropriate.
-12. For recurring use, schedule the CLI through the operator's existing Hermes scheduler. Keep the engine's own safety limits enabled.
+12. Review the result quality. Tune local keywords, services, locations, exclusions, score threshold, and reply style if needed. Do not edit the engine for ordinary business configuration.
+
+13. Only after the operator explicitly approves live replies may `runtime.dry_run` be changed to `false`.
+
+14. Before live scheduling, run `audit` again and confirm the daily reply cap, minimum gap, and same-user cooldown are appropriate.
+
+15. For recurring use, schedule the CLI through the operator's existing Hermes scheduler. Keep the engine's own safety limits enabled.
 
 ## Expected Threads permissions
 
@@ -64,6 +119,14 @@ For the current Threads workflow, the engine checks for the scopes needed for id
 - `threads_content_publish`
 
 Treat the engine's audit output and current official Meta Threads API documentation as the source of truth. If Meta changes an endpoint or scope, do not guess; update the adapter and tests first.
+
+## Retry behavior
+
+Temporary network failures and Threads `5xx` provider failures may be retried a small bounded number of times. Authentication errors, permission errors, normal `4xx` errors, and `429` rate limits must fail immediately rather than being hammered with retries.
+
+## Supabase rule
+
+Supabase is optional. The provided migration enables Row Level Security and is intended for trusted server-side automation access. Never expose a server-side Supabase key in browser/client code or GitHub.
 
 ## Good lead behavior
 
@@ -93,6 +156,8 @@ Do not force a CTA into every reply. If no CTA is configured, do not invent one.
 
 A safe setup has all of these properties:
 
+- the CLI is installed from the intended repository;
+- `social-lead-hunter setup` succeeds;
 - capability audit passes before live mode;
 - first run is dry-run;
 - dry-run produces zero publish calls;
