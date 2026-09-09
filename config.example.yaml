@@ -1,20 +1,15 @@
 business:
-  description: "A local service provider helping customers with custom project needs"
+  description: "CHANGE_ME: describe what the business offers"
   services:
-    - "custom service"
-    - "project consultation"
+    - "CHANGE_ME: service or product"
   reply_style: "helpful, concise, contextual"
   cta: ""
 
 search:
   keywords:
-    - "looking for service provider"
-    - "need custom service"
-  negative_keywords:
-    - "job vacancy"
-    - "giveaway"
-  target_locations:
-    - "Malaysia"
+    - "CHANGE_ME: buyer-intent search phrase"
+  negative_keywords: []
+  target_locations: []
   freshness_hours: 24
   min_score: 80
 
@@ -26,7 +21,7 @@ runtime:
 
 storage:
   backend: "sqlite"
-  path: "social_leads.sqlite3"
+  path: "~/.local/share/social-lead-hunter/social_leads.sqlite3"
 
 llm:
   enabled: false
