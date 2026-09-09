@@ -50,6 +50,97 @@ Canonical Hermes skill:
 skills/social-lead-hunter/SKILL.md
 ```
 
+## Copy-paste Hermes prompt for any business
+
+Use this when you want Hermes to handle most of the setup for you.
+
+```text
+Set up Social Lead Hunter from this GitHub repository:
+<REPOSITORY_URL>
+
+I want to use it to find potential customers on Threads for my business.
+
+What my business offers:
+<BUSINESS_DESCRIPTION>
+
+Products or services I want to find leads for:
+- <PRODUCT_OR_SERVICE_1>
+- <PRODUCT_OR_SERVICE_2>
+- <PRODUCT_OR_SERVICE_3>
+
+Target location or market:
+<TARGET_LOCATION_OR_MARKET>
+
+Examples of how potential customers may ask for these products/services:
+- <BUYER_INTENT_PHRASE_1>
+- <BUYER_INTENT_PHRASE_2>
+- <BUYER_INTENT_PHRASE_3>
+
+Preferred reply style:
+<REPLY_STYLE>
+
+Optional CTA/contact instruction:
+<CTA_OR_LEAVE_BLANK>
+
+GOAL
+
+Install and configure the engine so it can search recent public Threads posts, identify genuine buying intent, score the leads, draft contextual replies, and save the results.
+
+SETUP REQUIREMENTS
+
+1. Install the engine from the GitHub repository.
+2. Run `social-lead-hunter setup`.
+3. Keep the business configuration locally, outside the Git repository.
+4. Keep API tokens, database keys, LLM keys, and all other secrets in environment variables or local secret storage. Never commit or print secret values.
+5. Use the information in this prompt and any existing conversation context first. Ask me only for missing non-secret information.
+6. If you need to ask me something, explain it in plain language rather than assuming I understand Python, YAML, APIs, scopes, or database internals.
+7. Configure the products/services, buyer-intent keywords, exclusions, target location, reply style, CTA, score threshold, and safety limits based on the information above.
+8. Run the Threads capability audit before the first search.
+9. If a Threads permission or token capability is missing, stop and explain exactly what is missing. Do not bypass it with scraping.
+10. Start in DRY RUN.
+11. During dry-run, search for recent public posts that show genuine buying intent for the configured products/services.
+12. Exclude obvious bad matches such as my own account, seller self-promotion, recruitment/job posts, spam, giveaways, irrelevant posts, irrelevant locations, and duplicates.
+13. Generate short contextual draft replies that match the poster's language/style where practical.
+14. Do not invent prices, stock, lead time, certifications, service coverage, capabilities, or other business facts that were not provided.
+15. Report the dry-run results clearly: posts scanned, qualified leads, rejected posts, duplicates, drafted replies, failures, and any configuration issues.
+16. Keep live auto-replies disabled after setup.
+17. Do not change dry-run to live mode until I explicitly review the dry-run results and approve live replies.
+```
+
+### Very generic example
+
+This example deliberately avoids any specific industry. Replace the example values with whatever you actually sell or provide.
+
+```text
+Set up Social Lead Hunter from this GitHub repository:
+<REPOSITORY_URL>
+
+What my business offers:
+A business that provides products and services to customers.
+
+Products or services I want to find leads for:
+- Product A
+- Service B
+
+Target location or market:
+My target market
+
+Examples of how potential customers may ask:
+- looking for Product A
+- need someone who can provide Service B
+- any recommendation for this type of service
+
+Preferred reply style:
+Helpful, short, natural, and not pushy.
+
+Optional CTA/contact instruction:
+Leave blank for now.
+
+Please install and configure the tool, keep all secrets local, run the Threads permission audit, start in dry-run, show me the leads and draft replies, and keep live replies disabled until I explicitly approve them.
+```
+
+The placeholders are intentionally generic. A user can replace `Product A`, `Service B`, location, customer phrases, reply style, and CTA without changing the engine code.
+
 ## Manual install, if needed
 
 Install directly from a Git repository:
